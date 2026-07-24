@@ -1,0 +1,17 @@
+# Project root
+docker compose up -d postgres
+
+# Backend
+cd backend
+
+# Check Prisma
+npx prisma validate
+
+# Generate Prisma Client
+npx prisma generate
+
+# Create database tables
+npx prisma migrate dev --name init
+
+# Start backend
+npm run dev
