@@ -1,28 +1,39 @@
-# --- STAGE 1: Build the TypeScript code ---
+# Stage 1: Build & Compile
 FROM node:20-alpine AS builder
-WORKDIR /app
+WORKDIR /usr/src/app
 
-# Copy package files and install ALL dependencies (including devDependencies for TS)
-COPY package*.json ./
+# Copy package management files
+COPY package*.json tsconfig.json ./
+
+# Install all dependencies (including devDependencies needed for TypeScript)
 RUN npm ci
 
-# Copy the rest of your backend source code
+# Copy source code and configurations
 COPY . .
 
-# Compile TypeScript to JavaScript (assumes you have a "build" script in package.json)
+# Compile TypeScript to JavaScript (typically outputs to a /dist or /build folder)
 RUN npm run build
 
-# --- STAGE 2: Run the compiled JavaScript ---
+# Stage 2: Production Runtime
 FROM node:20-alpine AS runner
-WORKDIR /app
+WORKDIR /usr/src/app
+
 ENV NODE_ENV=production
 
-# Only install production dependencies to keep the image slim
+# Copy package files to install production-only dependencies
 COPY package*.json ./
 RUN npm ci --only=production
 
-# Copy compiled code from the builder stage (usually goes to a 'dist' or 'build' folder)
-COPY --from=builder /app/dist ./dist
+# Copy compiled JavaScript from the builder stage
+# (Adjust "dist" if your tsconfig.json outDir points elsewhere, e.g., "build")
+COPY --from=builder /usr/src/app/dist ./dist
 
-EXPOSE 3000
+# Run as a non-root user for security
+USER node
+
+# Expose your backend port (change 5000 to whatever your server.ts listens on)
+EXPOSE 5000
+
+ENV PORT=5000
+
 CMD ["node", "dist/server.js"]
