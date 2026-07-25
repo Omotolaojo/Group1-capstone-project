@@ -2,16 +2,10 @@
 FROM node:20-alpine AS builder
 WORKDIR /usr/src/app
 
-# Copy package management files
 COPY package*.json tsconfig.json ./
-
-# Install all dependencies (including devDependencies needed for TypeScript)
 RUN npm ci
 
-# Copy source code and configurations
 COPY . .
-
-# Compile TypeScript to JavaScript (typically outputs to a /dist or /build folder)
 RUN npm run build
 
 # Stage 2: Production Runtime
@@ -20,20 +14,23 @@ WORKDIR /usr/src/app
 
 ENV NODE_ENV=production
 
-# Copy package files to install production-only dependencies
+# Copy package files
 COPY package*.json ./
 RUN npm ci --only=production
 
-# Copy compiled JavaScript from the builder stage
-# (Adjust "dist" if your tsconfig.json outDir points elsewhere, e.g., "build")
+# ✅ Copy Prisma schema + migrations
+COPY --from=builder /usr/src/app/prisma ./prisma
+
+# ✅ Copy compiled app
 COPY --from=builder /usr/src/app/dist ./dist
 
-# Run as a non-root user for security
+# ✅ Generate Prisma client (VERY IMPORTANT)
+RUN npx prisma generate
+
 USER node
 
-# Expose your backend port (change 5000 to whatever your server.ts listens on)
 EXPOSE 5000
-
 ENV PORT=5000
 
-CMD ["node", "dist/server.js"]
+# ✅ Run migrations BEFORE starting server
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
