@@ -11,8 +11,8 @@ const app = express();
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://expense-tracker-system-six.vercel.app",
-  "https://expense-tracker-system-f5iyltu3d-jaysoftys-projects.vercel.app",
+  // "https://expense-tracker-system-six.vercel.app",
+  // "https://expense-tracker-system-f5iyltu3d-jaysoftys-projects.vercel.app",
 ];
 
 app.use(
@@ -77,7 +77,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use(
-  "/api/auth",
+  "/api/v1/auth",
   authRoutes
 );
 
