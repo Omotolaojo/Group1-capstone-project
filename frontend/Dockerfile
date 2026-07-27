@@ -36,8 +36,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-RUN addgroup -s nextjs && \
-    adduser -S nextjs -G nextjs
+RUN addgroup --system nextjs && \
+    adduser --system nextjs -G nextjs
 
 # Copy necessary files for standalone output
 COPY --from=builder /app/public ./public
