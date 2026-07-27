@@ -4,7 +4,7 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files to install dependencies
-COPY package.json ./
+COPY package.json ./ package-lock.json ./
 RUN npm ci
 
 # Stage 2: Builder

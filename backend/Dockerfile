@@ -8,6 +8,7 @@ RUN npm ci
 # Copy prisma files
 COPY prisma ./prisma
 # COPY prisma.config.ts ./
+COPY src ./src
 
 # Run migrations BEFORE starting server
 RUN npx prisma generate
@@ -53,5 +54,5 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 CMD wget --no-verbose --tries=1 --spider http://localhost:5000/api/v1/health || exit 1
 # CMD ["./docker-entrypoint.sh"]
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
-
+ 
 
