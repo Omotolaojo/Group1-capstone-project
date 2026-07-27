@@ -1,0 +1,36 @@
+name: Rollback to Previous Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Version tag to roll back to (e.g. v-abc1234)"
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Rollback on VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            cd ~/formflow
+            echo "=== Rolling back to: ${{ github.event.inputs.image_tag }} ==="
+            docker pull fuja9182/formflow-backend:${{ github.event.inputs.image_tag }}
+            docker pull fuja9182/formflow-frontend:${{ github.event.inputs.image_tag }}
+            sed -i "s|fuja9182/formflow-backend:.*|fuja9182/formflow-backend:${{ github.event.inputs.image_tag }}|" docker-compose.yml
+            sed -i "s|fuja9182/formflow-frontend:.*|fuja9182/formflow-frontend:${{ github.event.inputs.image_tag }}|" docker-compose.yml
+            docker compose down
+            docker compose up -d
+            sleep 15
+            echo "=== Rollback complete. Now running: ${{ github.event.inputs.image_tag }} ==="
+            docker compose ps
