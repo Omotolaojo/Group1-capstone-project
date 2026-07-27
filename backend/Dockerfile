@@ -7,7 +7,7 @@ RUN npm ci
 
 # Copy prisma files
 COPY prisma ./prisma
-COPY prisma.config.ts ./
+# COPY prisma.config.ts ./
 
 # Run migrations BEFORE starting server
 RUN npx prisma generate
@@ -23,8 +23,8 @@ FROM node:20-alpine
 WORKDIR /app
 
 # create a non root user 
-RUN addgroup -S appgroup && \
-    adduser -S appuser -G appgroup
+RUN addgroup --system appgroup && \
+    adduser --system appuser -G appgroup
 
 ENV NODE_ENV=production
 
@@ -36,7 +36,7 @@ COPY --from=builder /app/dist ./dist
 
 # Copy Prisma schema + migrations
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./
+# COPY --from=builder /app/prisma.config.ts ./
 
 # set ownership
 RUN chown -R appuser:appgroup /app
@@ -51,6 +51,7 @@ EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 CMD wget --no-verbose --tries=1 --spider http://localhost:5000/api/v1/health || exit 1
-CMD ["./docker-entrypoint.sh"]
+# CMD ["./docker-entrypoint.sh"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
 
 
