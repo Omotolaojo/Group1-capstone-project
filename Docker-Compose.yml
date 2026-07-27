@@ -1,26 +1,30 @@
-version: "3.9"
+# Removed `version: "3.9"` — deprecated in Compose v2, causes a harmless
+# but noisy warning on every run. Compose no longer needs it.
 
 services:
 
   postgres:
     image: postgres:16-alpine
     container_name: expense-db
-
     restart: unless-stopped
 
+    env_file:
+      - .env               # FIX: secrets pulled from .env instead of hardcoded below
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
-      POSTGRES_DB: expense_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
 
     ports:
-      - "5432:5432"
+      - "5432:5432"       # NOTE: fine for local dev — drop this mapping entirely
+                           # in staging/prod so the DB isn't reachable from outside
+                           # the docker network at all.
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,26 +37,36 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-
     container_name: expense-backend
-
     restart: unless-stopped
 
     depends_on:
       postgres:
         condition: service_healthy
 
+    env_file:
+      - .env               # FIX: DATABASE_URL now comes from .env, not committed here
     environment:
       NODE_ENV: production
-
-      DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/expense_db
-
-      command: sh -c "npx prisma migrate deploy && npm start"
-
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       PORT: 5000
+      # FIX: removed the stray `command:` key that was nested under `environment:`.
+      # It was never doing anything — `command` is a top-level service key, not an
+      # env var, so this line was silently creating a useless variable called
+      # "command" instead of overriding the container's startup command.
+      # The Dockerfile's own CMD already runs `prisma migrate deploy && node dist/server.js`,
+      # so no override is needed here at all.
 
     ports:
       - "5000:5000"
+
+    healthcheck:
+      # FIX: added — backend had no healthcheck despite exposing /api/health
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
     networks:
       - expense-network
@@ -62,13 +76,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-
     container_name: expense-frontend
-
     restart: unless-stopped
 
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy   # FIX: was just `depends_on: [backend]` (start-order
+                                     # only) — now waits for backend to actually be healthy,
+                                     # not just started.
 
     environment:
       NEXT_PUBLIC_API_URL: http://backend:5000
@@ -83,9 +98,6 @@ services:
 volumes:
   postgres_data:
 
-
 networks:
   expense-network:
     driver: bridge
-
-    
